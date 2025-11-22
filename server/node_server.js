@@ -6,52 +6,78 @@ const cors = require('cors');
 const app = express();
 const PORT = 3000;
 
-// Izinkan CORS agar Front-End bisa mengakses
 app.use(cors());
 
-app.get('/api/process', (req, res) => {
-    
-    // Tentukan lokasi script Python
-    const pythonScriptPath = path.join(__dirname, '..', 'python_logic', 'data_sorter.py');
-    
-    // Jalankan script Python dan tangkap outputnya
-    const python = spawn('python3', [pythonScriptPath]);
-    
-    let dataBuffer = '';
-    let errorBuffer = '';
+// Fungsi Helper untuk menjalankan script eksternal
+function runExternalProcess(executable, args) {
+    return new Promise((resolve, reject) => {
+        const process = spawn(executable, args);
+        let dataBuffer = '';
+        let errorBuffer = '';
 
-    // Menerima output JSON dari Python (stdout)
-    python.stdout.on('data', (data) => {
-        dataBuffer += data.toString();
+        process.stdout.on('data', (data) => {
+            dataBuffer += data.toString();
+        });
+
+        process.stderr.on('data', (data) => {
+            errorBuffer += data.toString();
+        });
+
+        process.on('close', (code) => {
+            if (code !== 0) {
+                return reject(`Process exited with code ${code}. Error: ${errorBuffer}`);
+            }
+            resolve(dataBuffer);
+        });
     });
+}
 
-    // Menerima error dari Python (stderr)
-    python.stderr.on('data', (data) => {
-        errorBuffer += data.toString();
-        console.error(`Python Error: ${data.toString()}`);
-    });
+// Handler utama API
+app.get('/api/polyglot-process', async (req, res) => {
+    try {
+        let finalResults = { languages: {} };
 
-    // Ketika script Python selesai
-    python.on('close', (code) => {
-        if (code !== 0) {
-            return res.status(500).json({ error: `Python process exited with code ${code}. Output: ${errorBuffer}` });
+        // 1. PYTHON: Data Generator & Sorting (Initial Data)
+        const pythonScriptPath = path.join(__dirname, '..', 'python_logic', 'data_sorter.py');
+        const pythonResult = await runExternalProcess('python3', [pythonScriptPath]);
+        const pythonData = JSON.parse(pythonResult);
+        finalResults.languages.python = pythonData;
+        
+        // Data yang dihasilkan Python akan digunakan untuk Go dan C++
+        const rawDataForHash = JSON.stringify(pythonData.original_data);
+
+        // 2. C++: Low-Level Sorting Demonstration
+        // CATATAN: Ini membutuhkan kompilasi C++ menjadi binary (misalnya sorter.exe atau sorter)
+        const cppBinaryPath = path.join(__dirname, '..', 'cpp_logic', 'sorter'); // Asumsi sudah dikompilasi
+        try {
+            const cppResult = await runExternalProcess(cppBinaryPath, []); 
+            finalResults.languages.cpp = JSON.parse(cppResult);
+        } catch(e) {
+            finalResults.languages.cpp = { error: "C++ binary not found/compiled. Run C++ compilation first." };
+        }
+
+        // 3. GO: Hashing/Checksum Utility
+        // CATATAN: Ini juga membutuhkan kompilasi Go menjadi binary (misalnya hasher.exe atau hasher)
+        const goBinaryPath = path.join(__dirname, '..', 'go_utility', 'hasher'); // Asumsi sudah dikompilasi
+        try {
+            const goHash = await runExternalProcess(goBinaryPath, [rawDataForHash]);
+            finalResults.languages.go = { hash_sha256: goHash };
+        } catch(e) {
+            finalResults.languages.go = { error: "Go binary not found/compiled. Run Go compilation first." };
         }
         
-        try {
-            const pythonOutput = JSON.parse(dataBuffer);
-            
-            // Kirim hasil akhir ke Front-End
-            res.json({
-                message: "Success! Data processed by Python, served by Node.js.",
-                ...pythonOutput 
-            });
-            
-        } catch (e) {
-            res.status(500).json({ error: "Gagal memparsing output dari Python menjadi JSON." });
-        }
-    });
+        // 4. Node.js (Koordinator)
+        finalResults.languages.nodejs = { message: "Node.js successfully coordinated all external processes." };
+
+        res.json(finalResults);
+
+    } catch (error) {
+        console.error('API Execution Error:', error);
+        res.status(500).json({ error: `Server failed to process. Detail: ${error}` });
+    }
 });
 
 app.listen(PORT, () => {
-    console.log(`✅ Server Node.js berjalan di http://localhost:${PORT}`);
+    console.log(`✅ Server Node.js (Polyglot Coordinator) berjalan di http://localhost:${PORT}`);
+    console.log(`Buka file index.html dan panggil /api/polyglot-process`);
 });
