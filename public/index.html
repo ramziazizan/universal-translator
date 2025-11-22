@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polyglot Translator - Demo</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f4; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 15px; }
+        button:hover { background-color: #0056b3; }
+        h3 { border-bottom: 2px solid #007bff; padding-bottom: 5px; }
+        pre { background-color: #eee; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 0.9em; }
+        .module { margin-bottom: 25px; border-left: 5px solid #007bff; padding-left: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 Proyek Polyglot: Universal Translator</h1>
+        <p>Aplikasi ini menunjukkan komunikasi antara **JavaScript (Front-End & Node.js)** dan **Python (Logic)**.</p>
+        
+        <button onclick="fetchData()">Mulai Proses Konversi (API Call)</button>
+
+        <div id="results">
+            </div>
+    </div>
+
+    <script>
+        async function fetchData() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Sedang memproses data dari Python...</p>';
+
+            try {
+                // Panggil API Node.js di localhost:3000
+                const response = await fetch('http://localhost:3000/api/process');
+                const data = await response.json();
+
+                if (data.error) {
+                    resultsDiv.innerHTML = `<p style="color:red;">Error Server: ${data.error}</p>`;
+                    return;
+                }
+
+                resultsDiv.innerHTML = `
+                    <div class="module">
+                        <h3>1. Node.js (Server & Penghubung)</h3>
+                        <p>Status: ${data.message}</p>
+                        <p>Node.js berhasil menjalankan Python dan mengolah output JSON-nya.</p>
+                    </div>
+                    
+                    <div class="module">
+                        <h3>2. Python (Data Core)</h3>
+                        <p>Python menghasilkan **${data.original_count}** entri dan melakukan sorting.</p>
+                        <h4>Data Terurut (5 Teratas):</h4>
+                        <pre>${JSON.stringify(data.sorted_data.slice(0, 5), null, 2)}</pre>
+                    </div>
+                `;
+
+            } catch (error) {
+                resultsDiv.innerHTML = `<p style="color:red;">Gagal terhubung ke server Node.js. Pastikan Anda telah menjalankan <code>npm start</code> di terminal.</p>`;
+            }
+        }
+    </script>
+</body>
+  </html>
