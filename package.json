@@ -1,0 +1,16 @@
+{
+  "name": "universal-translator",
+  "version": "1.0.0",
+  "description": "Polyglot project demonstrating communication between JS (Node.js) and Python.",
+  "main": "server/node_server.js",
+  "scripts": {
+    "start": "node server/node_server.js"
+  },
+  "keywords": ["node", "python", "polyglot", "javascript"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}
